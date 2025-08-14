@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Productivity Calendar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="celender.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        
+    </style>
+</head>
+<body>
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <div class="calendar-title">
+                <i class="fas fa-calendar-alt"></i>
+                <span>TaskFlow Calendar</span>
+            </div>
+            <div class="mini-calendar" style="display: none;">
+                <div class="mini-calendar-header">
+                    <span class="mini-calendar-title">September 2023</span>
+                    <div>
+                        <button class="calendar-nav-btn prev-mini-month"><i class="fas fa-chevron-left"></i></button>
+                        <button class="calendar-nav-btn next-mini-month"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="mini-calendar-weekdays">
+                    <div>S</div>
+                    <div>M</div>
+                    <div>T</div>
+                    <div>W</div>
+                    <div>T</div>
+                    <div>F</div>
+                    <div>S</div>
+                </div>
+                <div class="mini-calendar-days">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="calendar-views">
+                <button class="view-btn active" data-view="month">Month</button>
+                <button class="view-btn" data-view="week">Week</button>
+                <button class="view-btn" data-view="day">Day</button>
+            </div>
+            <div class="calendar-nav">
+                <button class="calendar-nav-btn prev-month"><i class="fas fa-chevron-left"></i></button>
+                <button class="today-btn">Today</button>
+                <button class="calendar-nav-btn next-month"><i class="fas fa-chevron-right"></i></button>
+                <button class="calendar-nav-btn add-task" style="margin-left: 1rem;">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="calendar-week-header calendar-grid" style="display: none;">
+            <!-- Will be populated for week view -->
+        </div>
+
+        <div class="calendar-day-view" style="display: none;">
+            <!-- Will be populated for day view -->
+        </div>
+
+        <div class="calendar-month-view">
+            <div class="calendar-grid">
+                <div class="day-header">Sunday</div>
+                <div class="day-header">Monday</div>
+                <div class="day-header">Tuesday</div>
+                <div class="day-header">Wednesday</div>
+                <div class="day-header">Thursday</div>
+                <div class="day-header">Friday</div>
+                <div class="day-header">Saturday</div>
+                <!-- Calendar days will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <div class="task-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Task</h3>
+                <button class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="task-form">
+                <div class="task-form-group">
+                    <label for="task-title" class="task-form-label">Task Title</label>
+                    <input type="text" id="task-title" class="task-form-input" placeholder="Enter task title" required>
+                </div>
+                <div class="task-form-group">
+                    <label for="task-date" class="task-form-label">Date</label>
+                    <input type="date" id="task-date" class="task-form-input" required>
+                </div>
+                <div class="task-form-group">
+                    <label for="task-category" class="task-form-label">Category</label>
+                    <select id="task-category" class="task-form-select" required>
+                        <option value="">Select category</option>
+                        <option value="work">Work</option>
+                        <option value="personal">Personal</option>
+                        <option value="meeting">Meeting</option>
+                    </select>
+                </div>
+                <div class="task-form-group">
+                    <label for="task-description" class="task-form-label">Description</label>
+                    <textarea id="task-description" class="task-form-textarea" placeholder="Enter task description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Current date
+            let currentDate = new Date();
+            let currentMonth = currentDate.getMonth();
+            let currentYear = currentDate.getFullYear();
+            let selectedDate = null;
+
+            // DOM Elements
+            const monthView = document.querySelector('.calendar-month-view');
+            const weekView = document.querySelector('.calendar-week-header');
+            const dayView = document.querySelector('.calendar-day-view');
+            const viewBtns = document.querySelectorAll('.view-btn');
+            const monthTitle = document.querySelector('.calendar-title span');
+            const prevMonthBtn = document.querySelector('.prev-month');
+            const nextMonthBtn = document.querySelector('.next-month');
+            const todayBtn = document.querySelector('.today-btn');
+            const prevMiniMonthBtn = document.querySelector('.prev-mini-month');
+            const nextMiniMonthBtn = document.querySelector('.next-mini-month');
+            const miniCalendarTitle = document.querySelector('.mini-calendar-title');
+            const miniCalendarDays = document.querySelector('.mini-calendar-days');
+            const miniCalendar = document.querySelector('.mini-calendar');
+            const addTaskBtn = document.querySelector('.add-task');
+            const taskModal = document.querySelector('.task-modal');
+            const closeModalBtn = document.querySelector('.close-btn');
+            const cancelBtn = document.querySelector('.cancel-btn');
+            const taskForm = document.getElementById('task-form');
+            const taskTitleInput = document.getElementById('task-title');
+            const taskDateInput = document.getElementById('task-date');
+            const taskCategoryInput = document.getElementById('task-category');
+            const taskDescriptionInput = document.getElementById('task-description');
+
+            // Sample tasks data
+            let tasks = [
+                {
+                    id: 1,
+                    title: 'Team Meeting',
+                    date: new Date(2023, currentMonth, 15),
+                    category: 'meeting',
+                    description: 'Weekly team sync with the product development team'
+                },
+                {
+                    id: 2,
+                    title: 'Project Deadline',
+                    date: new Date(2023, currentMonth, 20),
+                    category: 'work',
+                    description: 'Submit final deliverables for client project'
+                },
+                {
+                    id: 3,
+                    title: 'Gym Session',
+                    date: new Date(2023, currentMonth, 12),
+                    category: 'personal',
+                    description: 'Personal training session at 6 PM'
+                },
+                {
+                    id: 4,
+                    title: 'Doctor Appointment',
+                    date: new Date(2023, currentMonth, 5),
+                    category: 'personal',
+                    description: 'Annual check-up with Dr. Smith'
+                },
+                {
+                    id: 5,
+                    title: 'Client Call',
+                    date: new Date(2023, currentMonth, 18),
+                    category: 'meeting',
+                    description: 'Discuss new project requirements'
+                }
+            ];
+
+            // Initialize calendar
+            function initCalendar() {
+                renderMonth();
+            }
+
+            // Render month view
+            function renderMonth() {
+                const firstDay = new Date(currentYear, currentMonth, 1);
+                const lastDay = new Date(currentYear, currentMonth + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startingDay = firstDay.getDay();
+
+                monthTitle.textContent = `${getMonthName(currentMonth)} ${currentYear}`;
+
+                // Clear previous days
+                const calendarGrid = document.querySelector('.calendar-grid');
+                while (calendarGrid.children.length > 7) {
+                    calendarGrid.removeChild(calendarGrid.lastChild);
+                }
+
+                // Add empty cells for days before the first day of the month
+                for (let i = 0; i < startingDay; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+                    
+                    const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+                    const dayNumber = prevMonthDays - startingDay + i + 1;
+                    
+                    const dayNumberElement = document.createElement('div');
+                    dayNumberElement.className = 'day-number other-month';
+                    dayNumberElement.textContent = dayNumber;
+                    
+                    dayElement.appendChild(dayNumberElement);
+                    calendarGrid.appendChild(dayElement);
+                }
+
+                // Add days of the month
+                const today = new Date();
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+                    
+                    const dayNumberElement = document.createElement('div');
+                    dayNumberElement.className = 'day-number';
+                    dayNumberElement.textContent = i;
+                    
+                    // Highlight today
+                    if (i === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+                        dayNumberElement.classList.add('today');
+                    }
+                    
+                    // Handle click events
+                    dayElement.addEventListener('click', () => {
+                        selectDay(i);
+                    });
+                    
+                    dayElement.appendChild(dayNumberElement);
+                    calendarGrid.appendChild(dayElement);
+                    
+                    // Add any tasks for this day
+                    const dayTasks = getTasksForDay(i);
+                    if (dayTasks.length > 0) {
+                        const tasksContainer = document.createElement('div');
+                        tasksContainer.className = 'day-tasks';
+                        
+                        // Show first 3 tasks (or fewer)
+                        const tasksToShow = dayTasks.slice(0, 3);
+                        tasksToShow.forEach(task => {
+                            const taskElement = document.createElement('div');
+                            taskElement.className = `task-item task-${task.category}`;
+                            
+                            const taskDot = document.createElement('span');
+                            taskDot.className = 'task-indicator';
+                            
+                            const taskTitle = document.createTextNode(task.title);
+                            
+                            taskElement.appendChild(taskDot);
+                            taskElement.appendChild(taskTitle);
+                            tasksContainer.appendChild(taskElement);
+                            
+                            // Show task details on click
+                            taskElement.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                showTaskDetails(task);
+                            });
+                        });
+                        
+                        dayElement.appendChild(tasksContainer);
+                        
+                        // Show number of additional tasks if there are more
+                        if (dayTasks.length > 3) {
+                            const additionalTasks = document.createElement('div');
+                            additionalTasks.className = 'day-events-count';
+                            additionalTasks.textContent = `+${dayTasks.length - 3} more`;
+                            dayElement.appendChild(additionalTasks);
+                        }
+                    }
+                }
+
+                // Add empty cells for days after the last day of the month
+                const remainingCells = 42 - (startingDay + daysInMonth);
+                for (let i = 1; i <= remainingCells && (startingDay + daysInMonth) % 7 !== 0; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+                    
+                    const dayNumberElement = document.createElement('div');
+                    dayNumberElement.className = 'day-number other-month';
+                    dayNumberElement.textContent = i;
+                    
+                    dayElement.appendChild(dayNumberElement);
+                    calendarGrid.appendChild(dayElement);
+                }
+            }
+
+            // Get tasks for a specific day
+            function getTasksForDay(day) {
+                return tasks.filter(task => {
+                    return (
+                        task.date.getDate() === day &&
+                        task.date.getMonth() === currentMonth &&
+                        task.date.getFullYear() === currentYear
+                    );
+                });
+            }
+
+            // Select a day
+            function selectDay(day) {
+                const selectedDay = new Date(currentYear, currentMonth, day);
+                selectedDate = selectedDay;
+                
+                // Update the mini calendar if it's visible
+                if (miniCalendar.style.display !== 'none') {
+                    updateMiniCalendarSelection(selectedDay);
+                }
+                
+                // Example: You could switch to day view here or show details
+                console.log(`Selected: ${selectedDay.toDateString()}`);
+            }
+
+            // Show task details in a modal
+            function showTaskDetails(task) {
+                // For now, just log it - you could implement a detailed view
+                console.log('Task details:', task);
+                alert(`Task: ${task.title}\nDate: ${task.date.toDateString()}\nCategory: ${task.category}\nDescription: ${task.description}`);
+            }
+
+            // Get month name
+            function getMonthName(monthIndex) {
+                const months = [
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                ];
+                return months[monthIndex];
+            }
+
+            // Change month
+            function changeMonth(direction) {
+                if (direction === 'prev') {
+                    currentMonth--;
+                    if (currentMonth < 0) {
+                        currentMonth = 11;
+                        currentYear--;
+                    }
+                } else {
+                    currentMonth++;
+                    if (currentMonth > 11) {
+                        currentMonth = 0;
+                        currentYear++;
+                    }
+                }
+                renderMonth();
+                updateMiniCalendar();
+            }
+
+            // Go to today
+            function goToToday() {
+                currentDate = new Date();
+                currentMonth = currentDate.getMonth();
+                currentYear = currentDate.getFullYear();
+                renderMonth();
+                updateMiniCalendar();
+            }
+
+            // Switch view
+            function switchView(view) {
+                viewBtns.forEach(btn => {
+                    if (btn.dataset.view === view) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+
+                if (view === 'month') {
+                    monthView.style.display = 'block';
+                    weekView.style.display = 'none';
+                    dayView.style.display = 'none';
+                } else if (view === 'week') {
+                    monthView.style.display = 'none';
+                    weekView.style.display = 'grid';
+                    dayView.style.display = 'none';
+                    // You would implement renderWeek() here
+                } else if (view === 'day') {
+                    monthView.style.display = 'none';
+                    weekView.style.display = 'none';
+                    dayView.style.display = 'block';
+                    // You would implement renderDay() here
+                }
+            }
+
+            // Toggle mini calendar
+            function toggleMiniCalendar() {
+                if (miniCalendar.style.display === 'none') {
+                    miniCalendar.style.display = 'block';
+                    updateMiniCalendar();
+                } else {
+                    miniCalendar.style.display = 'none';
+                }
+            }
+
+            // Update mini calendar
+            function updateMiniCalendar() {
+                miniCalendarTitle.textContent = `${getMonthName(currentMonth)} ${currentYear}`;
+                miniCalendarDays.innerHTML = '';
+
+                const firstDay = new Date(currentYear, currentMonth, 1);
+                const lastDay = new Date(currentYear, currentMonth + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startingDay = firstDay.getDay();
+
+                // Add empty cells for days before the first day of the month
+                for (let i = 0; i < startingDay; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'mini-day other-month';
+                    dayElement.textContent = '';
+                    miniCalendarDays.appendChild(dayElement);
+                }
+
+                // Add days of the month
+                const today = new Date();
+                for (let i = 1; i <= daysInMonth; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'mini-day';
+                    dayElement.textContent = i;
+
+                    // Highlight today
+                    if (i === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+                        dayElement.classList.add('today');
+                    }
+
+                    // Highlight selected day
+                    if (selectedDate && 
+                        i === selectedDate.getDate() && 
+                        currentMonth === selectedDate.getMonth() && 
+                        currentYear === selectedDate.getFullYear()) {
+                        dayElement.classList.add('selected');
+                    }
+
+                    // Add click event
+                    dayElement.addEventListener('click', () => {
+                        selectDay(i);
+                    });
+
+                    miniCalendarDays.appendChild(dayElement);
+                }
+
+                // Add empty cells for days after the last day of the month
+                const remainingCells = 42 - (startingDay + daysInMonth);
+                for (let i = 1; i <= remainingCells && (startingDay + daysInMonth) % 7 !== 0; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'mini-day other-month';
+                    dayElement.textContent = '';
+                    miniCalendarDays.appendChild(dayElement);
+                }
+            }
+
+            // Update mini calendar selection
+            function updateMiniCalendarSelection(date) {
+                const days = document.querySelectorAll('.mini-calendar-days .mini-day');
+                days.forEach(day => {
+                    day.classList.remove('selected');
+                    
+                    if (day.textContent && 
+                        parseInt(day.textContent) === date.getDate() &&
+                        day.classList.contains('selected') === false &&
+                        !day.classList.contains('other-month')) {
+                        day.classList.add('selected');
+                    }
+                });
+            }
+
+            // Show task modal
+            function showTaskModal() {
+                taskModal.classList.add('active');
+                if (selectedDate) {
+                    const formattedDate = selectedDate.toISOString().split('T')[0];
+                    taskDateInput.value = formattedDate;
+                } else {
+                    const today = new Date().toISOString().split('T')[0];
+                    taskDateInput.value = today;
+                }
+                taskTitleInput.focus();
+            }
+
+            // Hide task modal
+            function hideTaskModal() {
+                taskModal.classList.remove('active');
+                taskForm.reset();
+            }
+
+            // Add new task
+            function addNewTask(event) {
+                event.preventDefault();
+                
+                const title = taskTitleInput.value.trim();
+                const dateStr = taskDateInput.value;
+                const category = taskCategoryInput.value;
+                const description = taskDescriptionInput.value.trim();
+                
+                if (!title || !dateStr || !category) {
+                    alert('Please fill in all required fields');
+                    return;
+                }
+                
+                const dateParts = dateStr.split('-');
+                const date = new Date(
+                    parseInt(dateParts[0]),
+                    parseInt(dateParts[1]) - 1,
+                    parseInt(dateParts[2])
+                );
+                
+                const newTask = {
+                    id: Date.now(), // Simple unique ID
+                    title,
+                    date,
+                    category,
+                    description
+                };
+                
+                tasks.push(newTask);
+                renderMonth();
+                hideTaskModal();
+            }
+
+            // Event listeners
+            prevMonthBtn.addEventListener('click', () => changeMonth('prev'));
+            nextMonthBtn.addEventListener('click', () => changeMonth('next'));
+            prevMiniMonthBtn.addEventListener('click', () => changeMonth('prev'));
+            nextMiniMonthBtn.addEventListener('click', () => changeMonth('next'));
+            todayBtn.addEventListener('click', goToToday);
+            
+            viewBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    switchView(btn.dataset.view);
+                });
+            });
+
+            addTaskBtn.addEventListener('click', showTaskModal);
+            closeModalBtn.addEventListener('click', hideTaskModal);
+            cancelBtn.addEventListener('click', hideTaskModal);
+            taskForm.addEventListener('submit', addNewTask);
+
+            // Initialize
+            initCalendar();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Task Reports</title>
+  <link rel="stylesheet" href="reports.css">
+  <style>
+    
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Task Reports</h1>
+
+    <!-- Overview Section -->
+    <section class="report-overview">
+      <div class="card" id="totalTasksCard">Total Tasks: 0</div>
+      <div class="card" id="completedTasksCard">Completed: 0</div>
+      <div class="card" id="pendingTasksCard">Pending: 0</div>
+      <div class="card" id="completionRateCard">Completion Rate: 0%</div>
+    </section>
+
+    <!-- Priority Breakdown -->
+    <section class="report-breakdowns">
+      <h2>Priority Breakdown</h2>
+      <ul id="priorityBreakdown"></ul>
+    </section>
+
+    <!-- Upcoming & Overdue -->
+    <section class="report-overdue-upcoming">
+      <h2>Upcoming & Overdue Tasks</h2>
+      <ul id="overdueTasksList"></ul>
+    </section>
+
+    <!-- Full Task Table -->
+    <section class="report-task-list">
+      <h2>All Tasks</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Due Date</th>
+          </tr>
+        </thead>
+        <tbody id="taskTableBody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.status === "Completed").length;
+      const pendingTasks = tasks.filter(t => t.status !== "Completed").length;
+      const completionRate = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      document.getElementById("totalTasksCard").textContent = `Total Tasks: ${totalTasks}`;
+      document.getElementById("completedTasksCard").textContent = `Completed: ${completedTasks}`;
+      document.getElementById("pendingTasksCard").textContent = `Pending: ${pendingTasks}`;
+      document.getElementById("completionRateCard").textContent = `Completion Rate: ${completionRate}%`;
+
+      // Priority breakdown
+      const priorityCount = { High: 0, Medium: 0, Low: 0 };
+      tasks.forEach(task => {
+        if (task.priority && priorityCount[task.priority] !== undefined) {
+          priorityCount[task.priority]++;
+        }
+      });
+
+      const breakdownList = document.getElementById("priorityBreakdown");
+      Object.entries(priorityCount).forEach(([priority, count]) => {
+        const li = document.createElement("li");
+        li.textContent = `${priority}: ${count}`;
+        breakdownList.appendChild(li);
+      });
+
+      // Overdue tasks
+      const now = new Date();
+      const overdueList = document.getElementById("overdueTasksList");
+      tasks.forEach(task => {
+        const due = new Date(task.dueDate);
+        if (due < now && task.status !== "Completed") {
+          const li = document.createElement("li");
+          li.textContent = `${task.title} - Due: ${task.dueDate}`;
+          overdueList.appendChild(li);
+        }
+      });
+
+      // All tasks table
+      const tbody = document.getElementById("taskTableBody");
+      tasks.forEach(task => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${task.title}</td>
+          <td>${task.priority}</td>
+          <td>${task.status}</td>
+          <td>${task.dueDate}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  </script>
+</body>
+</html>
