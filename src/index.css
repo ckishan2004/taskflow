@@ -1,0 +1,4 @@
+/* Keep minimal global styles here */
+html, body, #root {
+  height: 100%;
+}
